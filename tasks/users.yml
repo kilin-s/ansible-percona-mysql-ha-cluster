@@ -1,0 +1,31 @@
+---
+
+- name: Add users to mysql
+  mysql_user:
+    name: "{{ item.name }}"
+    password: "{{ item.password }}"
+    priv: "{{ item.priv }}"
+    state: "{{ item.state }}"
+    host: "{{ item.host }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  when: 
+    - percona_mysql_primary_node == true
+    - percona_mysql_host == true
+  loop: "{{ percona_mysql_users }}"
+
+
+- name: Add a users to proxysql
+  community.proxysql.proxysql_mysql_users:
+    login_user: proxysql_admin
+    login_password: "{{ proxysql_admin_pass }}"
+    username: "{{ item.name }}"
+    password: "{{ item.password }}"
+    active: true
+    default_hostgroup: 1
+    default_schema: mysql
+    transaction_persistent: true
+    state: "{{ item.state }}"
+    load_to_runtime: true
+    save_to_disk: true
+  loop: "{{ percona_mysql_users }}"
+  when: percona_proxy_sql_host == true

@@ -1,0 +1,74 @@
+---
+
+### percona_mysql_ha
+percona_mysql_group_replication_group_seeds: "10.0.51.165:33061,10.0.51.166:33061,10.0.51.167:33061"
+bootstrap: true  # change to false after deploy cluster
+
+percona_mysql_databases:
+  - name: db1
+  - name: db2
+
+
+percona_mysql_users:
+  - name: user1
+    password: pass # should be in vault 
+    priv: 'db1.*:ALL/db2.*:ALL'
+    host: "%"
+    state: present
+  - name: mysql_admin
+    password: pass # should be in vault
+    priv: '*.*:ALL'
+    host: "%"
+    state: present
+  - name: mysqld_exporter
+    password: pass # should be in vault
+    priv: '*.*:PROCESS,REPLICATION CLIENT,SELECT'
+    host: "10.0.0.%"
+    state: absent
+  - name: mysqld_exporter
+    password: pass # should be in vault
+    priv: '*.*:PROCESS,REPLICATION CLIENT,SELECT'
+    host: "localhost"
+    state: present
+
+percona_mysql_replicator_user_password: pass # should be in vault
+percona_mysql_replicator_user_host: "10.0.51.%"
+percona_mysql_monitor_user_password: pass # should be in vault
+percona_mysql_monitor_user_host: "10.0.51.%"
+proxysql_admin_pass: pass # should be in vault
+proxysql_gvar_admin_stats_password: pass # should be in vault. used for web ui and proxysql_exporter
+
+
+#https://proxysql.com/documentation/main-runtime/#mysql_servers
+proxysql_mysql_servers:
+  - hostname: 10.0.51.165
+    hostgroup_id: 1 # primary host group
+    weight: 1000
+    max_connections: 1000
+    comment: mysql-dev-cl1-1.iops.com
+  - hostname: 10.0.51.166
+    hostgroup_id: 2 # secondary host group
+    weight: 1000
+    max_connections: 1000
+    comment: mp-mysql-lt-cl1-2.iops.com
+  - hostname: 10.0.51.167
+    hostgroup_id: 2 # secondary host group
+    weight: 1000
+    max_connections: 1000
+    comment: mp-mysql-lt-cl1-3.iops.com
+
+# https://proxysql.com/documentation/main-runtime/#mysql_query_rules
+proxysql_mysql_query_rules:
+  - INSERT INTO mysql_query_rules (rule_id,active,attributes) VALUES (1,1,'{"flagOUTs":[{"id":1,"weight":30},{"id":2,"weight":70}]}')
+  - INSERT INTO mysql_query_rules (rule_id,active,flagIN,match_pattern,destination_hostgroup,apply) VALUES (2,1,1,'^select',1,1)
+  - INSERT INTO mysql_query_rules (rule_id,active,flagIN,match_pattern,destination_hostgroup,apply) VALUES (3,1,2,'^select',2,1)
+
+
+### mysqld exporter
+percona_mysqld_exporter_password: pass # should be in vault
+
+
+### KEEPALIVED
+keepalived_virtual_ip: 10.0.51.54
+proxyql_keepalived_virtual_router_id: "1" 
+

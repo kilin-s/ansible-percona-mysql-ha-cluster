@@ -1,0 +1,16 @@
+[mysql_cluster]
+mp-mysql-dev-cl1-1.iops.com
+mp-mysql-dev-cl1-2.iops.com
+mp-mysql-dev-cl1-3.iops.com
+mp-proxysql-dev-cl1-1.iops.com
+mp-proxysql-dev-cl1-2.iops.com
+
+
+[mysqld_exporter]
+mp-mysql-dev-cl1-1.iops.com
+mp-mysql-dev-cl1-2.iops.com
+mp-mysql-dev-cl1-3.iops.com
+
+[proxysql_exporter]
+mp-proxysql-dev-cl1-1.iops.com
+mp-proxysql-dev-cl1-2.iops.com

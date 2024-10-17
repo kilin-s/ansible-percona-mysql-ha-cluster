@@ -1,0 +1,22 @@
+global_defs {
+  router_id  proxysql_{{ inventory_hostname_short }}
+}
+
+vrrp_track_process track_proxysql {
+      process proxysql
+}
+
+vrrp_instance {{ inventory_hostname_short }} {
+  state {{ proxysql_keepalived_vrrp_state }}
+  interface {{ keepalived_instance_interface }}
+  virtual_router_id {{ proxyql_keepalived_virtual_router_id }}
+  priority {{ keepalived_instance_priority }}
+
+  virtual_ipaddress {
+   {{ keepalived_virtual_ip }}
+  }
+
+  track_process {
+         track_proxysql
+  }
+}

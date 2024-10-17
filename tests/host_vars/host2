@@ -1,0 +1,5 @@
+---
+percona_mysql_primary_node: true
+percona_mysql_host: true
+percona_mysql_server_id: 2
+percona_mysql_group_replication_local_address: "192.168.122.19:33061"

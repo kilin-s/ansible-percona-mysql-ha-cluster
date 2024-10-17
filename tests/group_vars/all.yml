@@ -1,0 +1,4 @@
+---
+percona_mysql_group_replication_group_seeds: "192.168.122.13:33061,192.168.122.19:33061"
+bootstrap: true
+#percona_mysql_backed_up_host: "{{ ansible_facts.enp1s0.ipv4.address }}"

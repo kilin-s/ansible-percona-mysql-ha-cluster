@@ -1,0 +1,49 @@
+---
+
+- import_tasks: checks.yml
+  when: bootstrap != true
+  tags: 
+    - checks
+    - always
+
+- include_tasks: os_config.yml
+  tags: os_config
+
+- import_tasks: mysql_bootstrap.yml
+  tags: mysql_bootstrap
+  when: 
+    - bootstrap == true
+    - percona_mysql_host == true
+
+- import_tasks: proxy_sql_bootstrap.yml
+  tags: proxy_sql_bootstrap
+  when: 
+    - bootstrap == true
+    - percona_proxy_sql_host == true
+
+- import_tasks: proxy_sql_config.yml
+  tags: proxy_sql_config
+  when: percona_proxy_sql_host == true
+
+- import_tasks: databases.yml
+  tags: databases
+  when: percona_mysql_host == true
+
+- import_tasks: users.yml
+  tags: users
+
+- import_tasks: mysql_backup.yml
+  tags: mysql_backup
+  when: 
+    - percona_mysql_host == true
+    - percona_mysql_backup_enabled == true
+
+- import_tasks: mysql_config.yml
+  tags: mysql_config
+  when: percona_mysql_host == true
+
+- import_tasks: keepalived.yml
+  tags: keepalived
+  when: 
+    - percona_proxy_sql_host == true
+    - keepalived_enabled == true

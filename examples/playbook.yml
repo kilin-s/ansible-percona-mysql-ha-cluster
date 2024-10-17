@@ -1,0 +1,25 @@
+---
+
+- hosts: mysql_cluster
+  become: true
+  roles:
+  - percona-mysql-ha
+
+- hosts: mysqld_exporter
+  become: true
+  roles:
+  - percona_mysqld_exporter
+  tags: mysqld_exporter
+
+- hosts: proxysql_exporter
+  become: true
+  roles:
+  - proxysql_exporter
+  tags: proxysql_exporter
+
+- hosts: mysql_cluster
+  become: true
+  roles:
+  - node_exporter
+  tags: node_exporter
+

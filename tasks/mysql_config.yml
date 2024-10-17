@@ -1,0 +1,60 @@
+---
+
+- name: Add monitoring user to mysql
+  mysql_user:
+    name: "{{ percona_mysql_monitor_username }}"
+    password: "{{ percona_mysql_monitor_user_password }}"
+    priv: '*.*:USAGE,REPLICATION CLIENT/sys.*:select'
+    state: present
+    host: "{{ percona_mysql_monitor_user_host }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  when: percona_mysql_primary_node == true
+
+
+- name: Copy mysql conf
+  template:
+    src: mysql.cnf.j2
+    dest: /etc/mysql/conf.d/mysql.cnf
+    owner: root
+    group: root
+    mode: 0644
+  register: mysql_cnf
+
+
+- name: Copy systemd unit
+  copy:
+    src: mysql.service
+    dest: /lib/systemd/system/mysql.service
+    owner: root
+    group: root
+    mode: 0644
+  register: mysql_systemd_cnf
+
+
+- name: Restart mysql secondary nodes 
+  systemd:
+    service: mysql
+    state: restarted
+  throttle: 1
+  when: 
+    - percona_mysql_primary_node == false
+    - (mysql_cnf.changed or mysql_systemd_cnf.changed)
+
+
+- name: Check Mysql secondary nodes has started
+  wait_for:
+    port: 33061
+    state: started
+    delay: 5
+  when: mysql_cnf.changed
+
+
+- name: Restart mysql primary node
+  systemd:
+    service: mysql
+    state: restarted
+  when: 
+    - percona_mysql_primary_node
+    - mysql_cnf.changed
+
+

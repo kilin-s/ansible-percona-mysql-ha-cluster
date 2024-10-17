@@ -1,0 +1,11 @@
+---
+
+- name: Configure swappines
+  sysctl:
+    name: vm.swappiness
+    value: '1'
+    state: present
+
+- name: Set FQDN to hostname
+  hostname:
+    name: "{{ inventory_hostname }}"

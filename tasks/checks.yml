@@ -1,0 +1,48 @@
+---
+
+- name: CHECKS| get primary hostname from vars
+  shell: "echo {{ inventory_hostname }}"
+  register: primary_hostname
+  when: 
+    - percona_mysql_host == true
+    - percona_mysql_primary_node == true
+
+
+- name: CHECKS| register primary hostname value for all hosts
+  set_fact:
+    primary_node: "{{ primary_hostname.stdout }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+  loop: "{{ ansible_play_hosts }}"
+  when: 
+    - percona_mysql_host == true
+    - percona_mysql_primary_node == true
+
+
+- name: CHECKS| get primary hostname from db
+  shell: mysql -D performance_schema -e "select MEMBER_HOST from replication_group_members where MEMBER_ROLE = 'PRIMARY'" -s
+  register: primary
+  when: percona_mysql_host == true
+
+
+- name: CHECKS| check current primary is set in vars
+  debug:
+    msg: 
+      - "primary in vars - {{ primary_node }}"
+      - "primary in db - {{ primary.stdout }}"
+      - "primary in proxysql has hostgroup_id = 1"
+      - " {{ proxysql_mysql_servers }}"
+  when: percona_mysql_host == true
+
+
+- name: CHECKS| exit if mysql primary is wrong
+  meta: end_play
+  when:
+    - primary_node != primary.stdout 
+    - percona_mysql_host == true
+
+
+- name: CHECKS| pause
+  pause:
+    prompt: "Did you check primary in mysql vars, proxysql vars and in db"
+

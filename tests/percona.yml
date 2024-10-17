@@ -1,0 +1,5 @@
+---
+- hosts: percona
+  become: true
+  roles:
+  - ../../percona-mysql-ha

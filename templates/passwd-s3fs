@@ -1,0 +1,1 @@
+{{ percona_mysql_s3_backup_access_key }}:{{ percona_mysql_s3_backup_secret_key }}

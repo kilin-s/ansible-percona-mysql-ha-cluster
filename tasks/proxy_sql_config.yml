@@ -1,0 +1,110 @@
+---
+
+- name: Set admin global variables
+  community.proxysql.proxysql_global_variables:
+    login_user: proxysql_admin
+    login_password: "{{ proxysql_admin_pass }}"
+    variable: "admin-{{ item.key }}"
+    value: "{{ item.value }}"
+    save_to_disk: true
+    load_to_runtime: true
+  loop: "{{ proxysql_admin_global_vars | dict2items }}"
+
+
+- name: Set mysql global variables
+  community.proxysql.proxysql_global_variables:
+    login_user: proxysql_admin
+    login_password: "{{ proxysql_admin_pass }}"
+    variable: "mysql-{{ item.key }}"
+    value: "{{ item.value }}"
+    save_to_disk: true
+    load_to_runtime: true
+  loop: "{{ proxysql_mysql_global_vars | dict2items }}"
+
+
+- name: Add a servers
+  community.proxysql.proxysql_backend_servers:
+    login_user: proxysql_admin
+    login_password: "{{ proxysql_admin_pass }}"
+    hostname: "{{ item.hostname }}"
+    hostgroup_id: "{{ item.hostgroup_id }}"
+    weight: "{{ item.weight }}"
+    max_connections: "{{ item.max_connections }}"
+    comment: "{{ item.comment }}"
+    state: present
+    load_to_runtime: true
+    save_to_disk: true
+  loop: "{{ proxysql_mysql_servers }}"
+
+
+- name: Add hostgroup(Activate support for Group Replication in ProxySQL)
+  community.proxysql.proxysql_replication_hostgroups:
+    login_user: proxysql_admin
+    login_password: "{{ proxysql_admin_pass }}"
+    writer_hostgroup: 1
+    reader_hostgroup: 2
+    state: present
+    load_to_runtime: true
+    save_to_disk: true
+    check_type: read_only
+
+
+# community.proxysql.proxysql_query_rules в последней версии нет поддержки необходимых полей
+- name: Add a proxysql query rule
+  block:
+    - name: Delete proxysql mysql query rules
+      mysql_query:
+        login_host: localhost
+        login_port: 6032
+        login_user: proxysql_admin
+        login_password: "{{ proxysql_admin_pass }}"
+        query: delete from mysql_query_rules
+
+    - name: Create proxysql mysql query rules
+      mysql_query:
+        login_host: localhost
+        login_port: 6032
+        login_user: proxysql_admin
+        login_password: "{{ proxysql_admin_pass }}"
+        query: "{{ item }}"
+      loop: "{{ proxysql_mysql_query_rules }}"
+
+    - name: Apply new query rules
+      mysql_query:
+        login_host: localhost
+        login_port: 6032
+        login_user: proxysql_admin
+        login_password: "{{ proxysql_admin_pass }}"
+        query:
+          - LOAD MYSQL QUERY RULES TO RUNTIME;
+          - SAVE MYSQL QUERY RULES TO DISK;
+        single_transaction: true
+  when: bootstrap == true or proxysql_update_query_rules == true
+
+
+- name: Copy proxysql config file
+  template:
+    src: proxysql.cnf.j2
+    dest: /etc/proxysql.cnf
+    owner: root
+    group: proxysql
+    mode: 0640
+  notify: Restart proxysql
+
+
+- name: Copy proxysql logrotate config
+  copy:
+    src: proxysql-logrotate
+    dest: /etc/logrotate.d/proxysql-logrotate
+    owner: root
+    group: root
+    mode: 0644
+
+
+- name: Create proxysql logdir
+  file:
+    state: directory
+    path: /var/log/proxysql
+    owner: proxysql
+    group: proxysql
+    mode: 0755

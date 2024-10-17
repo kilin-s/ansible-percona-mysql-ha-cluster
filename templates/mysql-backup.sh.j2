@@ -1,0 +1,63 @@
+#!/bin/bash
+DATE=$(date +%Y-%m-%d)
+TIME=$(date +%H-%M)
+LASTFULLBACKUPFILE=/opt/mysql-backup/last-full
+LASTFULLBACKUPDATE=$(cat $LASTFULLBACKUPFILE)
+FULLBACKUPDIR=/opt/mysql-backup/${DATE}-${TIME}/full
+LASTFULLBACKUPDIR=/opt/mysql-backup/${LASTFULLBACKUPDATE}/full
+INCBACKUPROOTDIR=/opt/mysql-backup/${LASTFULLBACKUPDATE}/incremental/
+INCBACKUPCOUNT=$( ls ${INCBACKUPROOTDIR}|wc -l )
+INCBACKUPDIR=${INCBACKUPROOTDIR}${INCBACKUPCOUNT}-${TIME}
+LASTINCBACKUPFILE=/opt/mysql-backup/last-inc
+LASTINCBACKUPDIR=$(cat $LASTINCBACKUPFILE)
+BACKUPINPROGRESSFLAG=/tmp/mysql-backup
+
+
+MYSQLPRIMARYHOSTNAME=$(mysql -D performance_schema -e "select MEMBER_HOST from replication_group_members where MEMBER_ROLE = 'PRIMARY'" -s)
+
+if [ "$MYSQLPRIMARYHOSTNAME" != "$HOSTNAME"]; then
+    echo " this host is not primary"
+    exit
+fi
+
+
+
+if [ ! -f "$LASTFULLBACKUPFILE" ]; then
+    if [ "$1" != "full" ]; then
+        echo "full backup doesn't exist"
+	exit
+    fi
+fi
+
+
+if [ "$1" == "full" ]; then
+    mkdir -p $FULLBACKUPDIR  
+    touch $BACKUPINPROGRESSFLAG
+    echo "start full backup"
+    xtrabackup --backup --compress --compress-threads={{ percona_mysql_backup_compress_threads }} --target-dir=$FULLBACKUPDIR -S /var/run/mysqld/mysqld.sock 
+    echo ${DATE}-${TIME} > $LASTFULLBACKUPFILE
+    rm $BACKUPINPROGRESSFLAG
+    echo "delete old backup"
+    rm -rf /opt/mysql-backup/$(date --date "{{ percona_mysql_full_backup_keep }} days ago" +%Y-%m-%d)*
+elif [ "$1" == "incremental" ]; then
+
+    mkdir -p $INCBACKUPROOTDIR  
+
+    if [ -f "$BACKUPINPROGRESSFLAG" ]; then
+        echo "abort, full backup in progress"
+        exit
+    else
+        if [ "$INCBACKUPCOUNT" == 0 ]; then
+            mkdir -p $INCBACKUPDIR  
+            echo "start incremental backup based on full backup"
+            xtrabackup --backup --compress --compress-threads={{ percona_mysql_backup_compress_threads }} --no-lock --incremental-basedir=$LASTFULLBACKUPDIR --target-dir=$INCBACKUPDIR -S /var/run/mysqld/mysqld.sock 
+            echo $INCBACKUPDIR > $LASTINCBACKUPFILE
+
+        elif [ "$INCBACKUPCOUNT" -gt 0 ]; then
+            mkdir -p $INCBACKUPDIR  
+            echo "start incremental backup based on incremental backup ${LASTINCBACKUPDIR}"
+            xtrabackup --backup --compress --compress-threads={{ percona_mysql_backup_compress_threads }} --no-lock --incremental-basedir=$LASTINCBACKUPDIR --target-dir=$INCBACKUPDIR -S /var/run/mysqld/mysqld.sock
+            echo $INCBACKUPDIR > $LASTINCBACKUPFILE
+	fi
+    fi
+fi

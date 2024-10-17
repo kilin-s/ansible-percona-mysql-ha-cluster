@@ -1,0 +1,14 @@
+/var/log/mariadb-backup/full.log {
+    daily
+    rotate 7
+    compress
+    missingok
+    notifempty
+}
+/var/log/mariadb-backup/incremental.log {
+    daily
+    rotate 7
+    compress
+    missingok
+    notifempty
+}

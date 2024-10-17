@@ -1,0 +1,14 @@
+datadir="/var/lib/proxysql"
+errorlog="/var/log/proxysql/proxysql.log"
+
+admin_variables=
+{
+        admin_credentials="admin:admin"
+        mysql_ifaces="0.0.0.0:6032"
+}
+
+mysql_variables=
+{
+        threads={{ proxysql_mysql_threads_global_var }}
+        interfaces="0.0.0.0:6033"
+}

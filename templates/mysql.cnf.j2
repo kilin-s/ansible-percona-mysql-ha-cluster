@@ -1,0 +1,75 @@
+#
+# The Percona Server 8.0 configuration file.
+#
+# For explanations see
+# http://dev.mysql.com/doc/mysql/en/server-system-variables.html
+
+[mysqld]
+pid-file        = /var/run/mysqld/mysqld.pid
+socket          = /var/run/mysqld/mysqld.sock
+datadir         = /var/lib/mysql
+log-error       = /var/log/mysql/error.log
+server_id       = {{ percona_mysql_server_id }}
+slow_query_log_file    = /var/log/mysql/mariadb-slow.log
+max_connections        = {{ percona_mysql_max_connections }}
+
+
+innodb_buffer_pool_size = {{ percona_mysql_innodb_buffer_pool_size }}
+key_buffer_size = {{ percona_mysql_key_buffer_size }}
+innodb_buffer_pool_instances = {{ percona_mysql_innodb_buffer_pool_instances }}
+innodb_log_file_size = {{ percona_mysql_innodb_log_file_size }}
+innodb_log_files_in_group = {{ percona_mysql_innodb_log_files_in_group }}
+innodb_sort_buffer_size={{ percona_mysql_innodb_sort_buffer_size }} 
+wait_timeout = {{ percona_mysql_wait_timeout }}
+event_scheduler={{ percona_mysql_event_scheduler }}
+slow_query_log={{ percona_mysql_slow_query_log }}
+long_query_time={{ percona_mysql_long_query_time }}
+sql_mode = STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+
+collation_server = utf8mb4_general_ci
+init_connect='SET collation_connection = utf8mb4_general_ci'
+
+
+#####################
+#Replication + binlog settings
+#####################
+
+auto-increment-increment = 1
+auto-increment-offset = 1
+
+log-bin = /var/lib/mysql/binlog
+log-bin-index = binlog.index
+binlog-checksum = NONE
+binlog-format = ROW
+binlog-row-image = FULL
+log-slave-updates = 1
+binlog-transaction-dependency-tracking = WRITESET_SESSION
+
+enforce-gtid-consistency = TRUE
+gtid-mode = ON
+
+master-info-file = master.info
+master-info-repository = TABLE
+relay_log_info_repository = TABLE
+relay-log = /var/lib/mysql/relay
+
+sync-binlog = 1
+
+### SLAVE SECTION
+skip-slave-start
+slave-parallel-type = LOGICAL_CLOCK
+slave-parallel-workers = 4
+slave-preserve-commit-order = 1
+
+
+######################################
+#Group Replication
+######################################
+plugin_load_add = 'group_replication.so'
+plugin-load-add = 'mysql_clone.so'
+group_replication_group_name = "{{ percona_mysql_group_replication_group_name }}"
+group_replication_start_on_boot = {{ percona_mysql_group_replication_start_on_boot }}
+group_replication_local_address = "{{ percona_mysql_group_replication_local_address }}"
+group_replication_group_seeds = "{{ percona_mysql_group_replication_group_seeds }}" 
+group_replication_bootstrap_group = off
+transaction-write-set-extraction = XXHASH64

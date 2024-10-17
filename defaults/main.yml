@@ -1,0 +1,149 @@
+---
+bootstrap: false
+proxysql_update_query_rules: false
+
+
+
+### MYSQL
+percona_mysql_max_connections: 1050
+percona_mysql_server_id: ""
+percona_mysql_group_replication_group_name: 9d28483e-69c3-11ee-8c99-0242ac120002
+percona_mysql_group_replication_local_address: ""
+percona_mysql_group_replication_group_seeds: ""
+percona_mysql_group_replication_start_on_boot: "on"
+percona_mysql_primary_node: false
+percona_mysql_host: false
+percona_proxy_sql_host: false
+#Change default databases
+percona_mysql_databases:
+  - name: db1
+  - name: db2
+
+
+percona_mysql_innodb_buffer_pool_size_math: "{{ (ansible_facts.memtotal_mb * 0.5)|round(0, 'floor')|int}}" # for calculation
+percona_mysql_innodb_buffer_pool_size: "{{ percona_mysql_innodb_buffer_pool_size_math }}M"
+# instances count =~ percona_mysql__innodb_buffer_pool_size /1gb
+percona_mysql_innodb_buffer_pool_instances: "{{ (percona_mysql_innodb_buffer_pool_size_math|int / 1024) |round(0, 'ceil')|int }}"
+percona_mysql_innodb_log_files_in_group: 2
+# file size * percona_mysql_innodb_log_files_in_group =~ 25% of percona_mysql_innodb_buffer_pool_size
+percona_mysql_innodb_log_file_size: "{{ ((percona_mysql_innodb_buffer_pool_size_math|int / 4) / percona_mysql_innodb_log_files_in_group) |round(0, 'floor')|int }}M" 
+percona_mysql_innodb_sort_buffer_size: 4194304
+
+percona_mysql_key_buffer_size: "64K"
+percona_mysql_wait_timeout: 300
+percona_mysql_event_scheduler: "ON"
+percona_mysql_slow_query_log: "ON"
+percona_mysql_long_query_time: 5
+
+
+
+
+### USERS
+#Change default users
+percona_mysql_users:
+  - name: reader
+    password: password
+    priv: '*.*:SELECT'
+    host: "192.168.%"
+    state: present
+  - name: writer
+    password: password
+    priv: 'db1.*:ALL/db2.*:ALL'
+    host: "192.168.%"
+    state: present
+
+percona_mysql_replicator_user_password: 12345 
+percona_mysql_replicator_user_host: "192.168.%"
+percona_mysql_monitor_username: monitor
+percona_mysql_monitor_user_password: 12345 
+percona_mysql_monitor_user_host: "192.168.%"
+proxysql_admin_pass: 12345
+
+
+
+
+
+
+### PROXYSQL
+
+proxysql_admin_global_vars:
+  cluster_username: cluster1
+  cluster_password: "{{ proxysql_gvar_admin_cluster_password }}"
+  web_enabled: true
+  stats_credentials: "{{ proxysql_gvar_admin_stats_login }}:{{ proxysql_gvar_admin_stats_password }}"
+  hash_passwords: false # https://proxysql.com/documentation/global-variables/admin-variables/#admin-hash_passwords
+
+proxysql_mysql_global_vars:    
+  hostgroup_manager_verbose: 0
+  query_digests_normalize_digest_text: true
+  server_version: 8.0.34
+  default_charset: utf8
+  tcp_keepalive_time: 300
+  use_tcp_keepalive: true
+  verbose_query_error: true
+  show_processlist_extended: true
+  max_stmts_cache: 50000
+  set_query_lock_on_hostgroup: 0
+  monitor_username: "{{ percona_mysql_monitor_username }}"
+  monitor_password: "{{ percona_mysql_monitor_user_password }}"
+  monitor_connect_interval: 5000
+  monitor_ping_interval: 5000
+  monitor_read_only_interval: 5000
+  monitor_read_only_timeout: 500
+  monitor_writer_is_also_reader: false
+  threads: "{{ proxysql_mysql_threads_global_var }}"
+  max_connections: 3000
+  default_query_timeout: 600000
+  ping_interval_server_msec: 5000
+  ping_timeout_server: 500
+
+proxysql_mysql_threads_global_var: 4
+proxysql_gvar_admin_cluster_password: clusterpass
+proxysql_gvar_admin_stats_login: stats
+proxysql_gvar_admin_stats_password: stats
+
+proxysql_mysql_servers:
+  - hostname: 192.168.122.13 # Primary 
+    hostgroup_id: 1 # primary host group
+    weight: 1000
+    max_connections: 1000
+    comment: host1
+  - hostname: 192.168.122.19 # secondary
+    hostgroup_id: 2 # secondary host group
+    weight: 1000
+    max_connections: 1000
+    comment: host2
+
+proxysql_mysql_query_rules:
+  - INSERT INTO mysql_query_rules (rule_id,active,attributes) VALUES (1,1,'{"flagOUTs":[{"id":1,"weight":40},{"id":2,"weight":60}]}')
+  - INSERT INTO mysql_query_rules (rule_id,active,flagIN,match_pattern,destination_hostgroup,apply) VALUES (2,1,1,'^select',1,1)
+  - INSERT INTO mysql_query_rules (rule_id,active,flagIN,match_pattern,destination_hostgroup,apply) VALUES (3,1,2,'^select',2,1) 
+
+    
+    
+    
+    
+### BACKUP
+percona_mysql_backup_enabled: false
+percona_mysql_s3_backup: false
+#percona_mysql_backed_up_host: "{{ ansible_facts.eth0.ipv4.address }}"
+percona_mysql_s3_backup_bucket_name: mariadb-backup
+percona_mysql_s3_backup_url: http://backup.iops.com:9000/
+percona_mysql_backup_user_pass: xxx
+percona_mysql_s3_backup_access_key: xxx
+percona_mysql_s3_backup_secret_key: xxx
+percona_mysql_backup_full_hour: 1
+percona_mysql_backup_full_minute: 0
+percona_mysql_backup_inc_hour: "*"
+percona_mysql_backup_inc_minute: "*/30"
+percona_mysql_backup_compress_threads: 1
+percona_mysql_full_backup_keep: 7
+
+
+
+keepalived_enabled: true
+keepalived_instance_interface: eth0
+keepalived_instance_priority: 100
+keepalived_virtual_ip: "" 
+proxysql_keepalived_vrrp_state: ""
+proxyql_keepalived_virtual_router_id: ""

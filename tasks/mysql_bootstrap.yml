@@ -1,0 +1,105 @@
+---
+
+- name: Install prerequisites
+  apt:
+    name:
+      - gnupg2
+      - lsb-release
+      - python3-pymysql # for mysql_user task
+    state: present
+    update_cache: true
+
+
+- name: Install percona release
+  apt:
+    deb: https://repo.percona.com/apt/percona-release_latest.generic_all.deb
+
+
+- name: Enable percona release
+  shell: percona-release setup pdps-8.0.34
+
+
+- name: install percona server
+  apt:
+    name: 
+      - percona-server-server=8.0.34-26-1.focal
+      - percona-toolkit
+    state: present
+    update_cache: true
+
+
+- name: Copy mysql conf
+  template:
+    src: mysql.cnf.j2
+    dest: /etc/mysql/conf.d/mysql.cnf
+    owner: root
+    group: root
+    mode: 0644
+  vars:
+    percona_mysql_group_replication_start_on_boot: "off"
+
+
+- name: Restart & enable mysql
+  systemd:
+    state: restarted
+    name: mysql
+    enabled: true
+
+
+- name: add replication user
+  mysql_user:
+    name: replicator
+    password: "{{ percona_mysql_replicator_user_password }}"
+    priv: '*.*:REPLICATION SLAVE,BACKUP_ADMIN'
+    state: present
+    host: "{{ percona_mysql_replicator_user_host }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    sql_log_bin: false
+
+
+- name: Link nodes with replication channel
+  mysql_query:
+    query: "CHANGE MASTER TO MASTER_USER='replicator', MASTER_PASSWORD='{{ percona_mysql_replicator_user_password }}' FOR CHANNEL 'group_replication_recovery'"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+
+- name: Enable group replication on primary
+  mysql_query:
+    query:
+      - SET GLOBAL group_replication_bootstrap_group=ON
+      - START GROUP_REPLICATION
+      - SET GLOBAL group_replication_bootstrap_group=OFF
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  when: percona_mysql_primary_node 
+
+
+- name: Enable group replication on secondary
+  mysql_query:
+    query: START GROUP_REPLICATION
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  when: percona_mysql_primary_node == False
+
+
+- name: Create sql scripts dir
+  file:
+    state: directory
+    path: /etc/mysql/scripts
+    owner: root
+    group: root
+    mode: 0400
+
+
+- name: Copy sys_view_forProxysql script
+  copy:
+    src: GR_sys_view_forProxysql_v1.sql
+    dest: /etc/mysql/scripts/GR_sys_view_forProxysql_v1.sql
+    owner: root
+    group: root
+    mode: 0400
+  register: sys_view_for_proxysql_script
+
+
+- name: Create sys view for proxysql
+  shell: mysql -e 'source /etc/mysql/scripts/GR_sys_view_forProxysql_v1.sql'
+  when: percona_mysql_primary_node
+

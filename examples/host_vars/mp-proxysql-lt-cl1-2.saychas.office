@@ -1,0 +1,4 @@
+---
+percona_proxy_sql_host: true
+keepalived_instance_priority: 90
+proxysql_keepalived_vrrp_state: "BACKUP"

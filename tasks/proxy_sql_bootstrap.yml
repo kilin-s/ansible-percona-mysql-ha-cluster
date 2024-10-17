@@ -1,0 +1,38 @@
+---
+
+- name: Install prerequisites
+  apt:
+    name:
+      - gnupg2
+      - lsb-release
+      - python3-pymysql # for mysql_user task
+    state: present
+    update_cache: true
+
+
+- name: Install percona release
+  apt:
+    deb: https://repo.percona.com/apt/percona-release_latest.generic_all.deb
+
+
+- name: Enable percona release
+  shell: percona-release setup pdps-8.0.34
+
+
+# установить mysql client
+- name: Install proxysql
+  apt:
+    name: proxysql2=2:2.5.5-1.1.focal
+    update_cache: yes
+    state: present
+
+
+- name: First set proxysql admin user 
+  community.proxysql.proxysql_global_variables:
+    login_user: 'admin'
+    login_password: 'admin'
+    variable: 'admin-admin_credentials'
+    value: 'proxysql_admin:{{ proxysql_admin_pass }}'
+    save_to_disk: true
+    load_to_runtime: true
+  ignore_errors: true

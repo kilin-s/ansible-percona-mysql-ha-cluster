@@ -1,0 +1,9 @@
+---
+
+- name: Create database
+  mysql_db:
+    name: "{{ item.name }}"
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  when: percona_mysql_primary_node
+  loop: "{{ percona_mysql_databases }}"

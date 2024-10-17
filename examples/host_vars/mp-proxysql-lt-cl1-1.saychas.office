@@ -1,0 +1,5 @@
+---
+percona_proxy_sql_host: true
+keepalived_instance_priority: 100
+proxysql_keepalived_vrrp_state: "MASTER"
+
